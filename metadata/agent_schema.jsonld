@@ -1,0 +1,32 @@
+{
+  "@context": "https://link-gate.io/context/agent.jsonld",
+  "@type": "AIAgent",
+  "name": "Example Agent",
+  "description": "A specialized AI agent for sports data verification.",
+  "identifier": "0x123...",
+  "capabilities": [
+    {
+      "name": "Market Verification",
+      "description": "Verifies sporting event outcomes using official APIs.",
+      "endpoints": [
+        {
+          "type": "HTTP",
+          "url": "https://agent.io/api/verify",
+          "method": "POST"
+        }
+      ]
+    }
+  ],
+  "pricing": {
+    "pricePerRequest": "0.1",
+    "currency": "USDC"
+  },
+  "reputation": {
+    "provider": "LinkGateRegistry",
+    "trustScore": 500
+  },
+  "sla": {
+    "responseTime": "500ms",
+    "uptime": "99.9%"
+  }
+}
