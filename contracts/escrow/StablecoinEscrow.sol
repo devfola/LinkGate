@@ -71,7 +71,10 @@ contract StablecoinEscrow {
     ) external {
         require(payments[_taskId].amount == 0, "Task already exists");
 
-        IERC20(usdcToken).transferFrom(msg.sender, address(this), _amount);
+        require(
+            IERC20(usdcToken).transferFrom(msg.sender, address(this), _amount),
+            "USDC: transferFrom failed"
+        );
 
         payments[_taskId] = Payment({
             buyer: msg.sender,
@@ -92,7 +95,10 @@ contract StablecoinEscrow {
         require(!p.isReleased && !p.isRefunded, "Payment already settled");
 
         p.isReleased = true;
-        IERC20(usdcToken).transfer(p.seller, p.amount);
+        require(
+            IERC20(usdcToken).transfer(p.seller, p.amount),
+            "USDC: transfer to seller failed"
+        );
 
         emit PaymentReleased(_taskId, p.seller, p.amount);
     }
@@ -105,7 +111,10 @@ contract StablecoinEscrow {
         require(!p.isReleased && !p.isRefunded, "Payment already settled");
 
         p.isRefunded = true;
-        IERC20(usdcToken).transfer(p.buyer, p.amount);
+        require(
+            IERC20(usdcToken).transfer(p.buyer, p.amount),
+            "USDC: transfer to buyer failed"
+        );
 
         emit PaymentRefunded(_taskId, p.buyer, p.amount);
     }
