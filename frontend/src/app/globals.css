@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0B0E14;
+  --color-foreground: #ffffff;
+  
+  --color-primary: #2A5ADA; /* Chainlink Blue */
+  --color-cyan: #00F0FF;
+  --color-purple: #B026FF;
+  
+  /* Glassmorphism helpers */
+  --color-glass-bg: rgba(255, 255, 255, 0.03);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  
+  /* Font Families */
+  --font-sans: var(--font-inter);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(42, 90, 218, 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.1), transparent 25%);
+    background-attachment: fixed;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #050505; 
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1a1a1a; 
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2A5ADA; 
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] backdrop-blur-md rounded-2xl;
+  }
+  
+  .neon-glow {
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF];
+  }
+}
