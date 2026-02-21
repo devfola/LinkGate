@@ -45,3 +45,6 @@ yarn-error.log*
 # Coverage
 coverage/
 lcov.info
+
+
+LinkGate_Architecture.md

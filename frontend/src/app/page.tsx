@@ -34,7 +34,7 @@ export default function Home() {
 
         <motion.p variants={ANIMATION_VARIANTS} className="text-lg md:text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
           Orchestrate, verify, and settle AI agent workflows securely via the new{" "}
-          <span className="text-white font-semibold">Chainlink Confidential Runtime Environment (CRE)</span>.
+          <span className="text-white font-semibold">Chainlink Runtime Environment (CRE)</span>.
         </motion.p>
 
         <motion.div variants={ANIMATION_VARIANTS} className="flex flex-col sm:flex-row items-center justify-center gap-4">

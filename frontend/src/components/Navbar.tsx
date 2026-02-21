@@ -8,7 +8,7 @@ export default function Navbar() {
     const { ready, authenticated, user, login, logout } = usePrivy();
 
     return (
-        <nav className="fixed top-0 w-full z-50 glass-panel border-b-0 border-t-0 rounded-none px-6 py-4">
+        <nav className="fixed top-0 w-full z-50 bg-[#0B0E14]/80 backdrop-blur-xl border-b border-white/10 px-6 py-4">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2 group">
                     <div className="p-2 rounded-lg bg-[#2A5ADA]/20 border border-[#2A5ADA]/50 group-hover:neon-glow transition-all duration-300">

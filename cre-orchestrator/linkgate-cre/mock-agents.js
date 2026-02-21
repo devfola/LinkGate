@@ -1,7 +1,7 @@
 const express = require('express');
 
 const app = express();
-const port = 3000;
+const port = 3001;
 
 app.get('/agent1', (req, res) => {
     console.log(`[Mock Agent 1] Received task ${req.query.taskId}`);
