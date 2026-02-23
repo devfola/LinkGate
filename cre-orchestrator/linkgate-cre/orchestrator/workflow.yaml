@@ -22,6 +22,15 @@ staging-settings:
     workflow-path: "./main.ts"
     config-path: "./config.staging.json"
     secrets-path: ""
+
+# ==========================================================================
+mock-settings:
+  user-workflow:
+    workflow-name: "orchestrator-mock"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.mock.json"
+    secrets-path: ""
     
 
 # ==========================================================================

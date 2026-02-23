@@ -18,6 +18,7 @@ const configSchema = z.object({
 	schedule: z.string(),
 	agentEndpoints: z.array(z.string()),
 	escrowAddress: z.string(),
+	registryAddress: z.string(),
 	taskId: z.string(),
 	chainSelectorName: z.string(),
 	gasLimit: z.string(),
@@ -34,10 +35,10 @@ interface AgentResult {
 
 const fetchAgentResult = (runtime: Runtime<Config>, endpoint: string, taskId: string): AgentResult => {
 	const httpClient = new HTTPClient()
-	
+
 	try {
-	    // In a real scenario, we would send the payload via POST.
-		// For the simulation, we assume local agents that return JSON.
+		// In a real scenario, payload would sent via POST.
+		// For the simulation, I assume local agents that return JSON.
 		const response = httpClient.sendRequest(runtime, {
 			method: 'GET',
 			url: `${endpoint}?taskId=${taskId}`,
@@ -49,9 +50,9 @@ const fetchAgentResult = (runtime: Runtime<Config>, endpoint: string, taskId: st
 
 		const responseText = Buffer.from(response.body).toString('utf-8')
 		const agentResp = JSON.parse(responseText)
-		
+
 		return {
-			agentAddress: endpoint,
+			agentAddress: agentResp.agentAddress || endpoint,
 			result: agentResp.result || 'Outcome: Team A won 2-1',
 			timestamp: Date.now(),
 			signature: agentResp.signature || '0xmocksig',
@@ -69,6 +70,7 @@ const fetchAgentResult = (runtime: Runtime<Config>, endpoint: string, taskId: st
 
 const settleEscrow = (runtime: Runtime<Config>, taskId: string, action: 'release' | 'refund'): string => {
 	const config = runtime.config
+
 	const network = getNetwork({
 		chainFamily: 'evm',
 		chainSelectorName: config.chainSelectorName,
@@ -92,12 +94,12 @@ const settleEscrow = (runtime: Runtime<Config>, taskId: string, action: 'release
 		outputs: []
 	}]
 
-    // Convert string taskId to bytes32 (padded)
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(taskId);
-    const bytes32 = new Uint8Array(32);
-    bytes32.set(bytes.subarray(0, Math.min(bytes.length, 32)));
-    const taskIdPadded = bytesToHex(bytes32);
+	// Convert string taskId to bytes32 (padded)
+	const encoder = new TextEncoder();
+	const bytes = encoder.encode(taskId);
+	const bytes32 = new Uint8Array(32);
+	bytes32.set(bytes.subarray(0, Math.min(bytes.length, 32)));
+	const taskIdPadded = bytesToHex(bytes32);
 
 	const callData = encodeFunctionData({
 		abi: actionAbi,
@@ -135,18 +137,79 @@ const settleEscrow = (runtime: Runtime<Config>, taskId: string, action: 'release
 	return bytesToHex(txHash)
 }
 
+const updateReputation = (runtime: Runtime<Config>, agentAddress: string, wasSuccessful: boolean): string => {
+	const config = runtime.config
+
+	const network = getNetwork({
+		chainFamily: 'evm',
+		chainSelectorName: config.chainSelectorName,
+		isTestnet: true,
+	})
+
+	if (!network) {
+		throw new Error(`Network not found for chain selector name: ${config.chainSelectorName}`)
+	}
+
+	const evmClient = new EVMClient(network.chainSelector.selector)
+
+	runtime.log(`[LinkGate] Reporting performance: recordOutcome("${agentAddress}", ${wasSuccessful})`)
+
+	const recordOutcomeAbi = [{
+		name: 'recordOutcome',
+		type: 'function',
+		stateMutability: 'nonpayable',
+		inputs: [
+			{ type: 'address', name: '_agent' },
+			{ type: 'bool', name: '_wasSuccessful' },
+			{ type: 'bool', name: '_slaViolation' }
+		],
+		outputs: []
+	}]
+
+	const callData = encodeFunctionData({
+		abi: recordOutcomeAbi,
+		functionName: 'recordOutcome',
+		args: [agentAddress as Address, wasSuccessful, false], // slaViolation false for MVP
+	})
+
+	const reportResponse = runtime
+		.report({
+			encodedPayload: hexToBase64(callData),
+			encoderName: 'evm',
+			signingAlgo: 'ecdsa',
+			hashingAlgo: 'keccak256',
+		})
+		.result()
+
+	const resp = evmClient
+		.writeReport(runtime, {
+			receiver: config.registryAddress,
+			report: reportResponse,
+			gasConfig: {
+				gasLimit: config.gasLimit,
+			},
+		})
+		.result()
+
+	if (resp.txStatus !== TxStatus.SUCCESS) {
+		throw new Error(`Failed to write reputation report for ${agentAddress}: ${resp.errorMessage || resp.txStatus}`)
+	}
+
+	return bytesToHex(resp.txHash || new Uint8Array(32))
+}
+
 const verifyResults = (results: AgentResult[]): boolean => {
-    // Simple verification check: Do we have at least 2 identical successful responses out of 3?
-    const validResults = results.filter(r => r.result !== '__FAILED__');
-    if (validResults.length < 2) return false;
-    
-    // Check consensus
-    const counts: Record<string, number> = {};
-    for (const r of validResults) {
-        counts[r.result] = (counts[r.result] || 0) + 1;
-        if (counts[r.result] >= 2) return true; // Reached consensus
-    }
-    return false;
+	// Simple verification check: Do we have at least 2 identical successful responses out of 3?
+	const validResults = results.filter(r => r.result !== '__FAILED__');
+	if (validResults.length < 2) return false;
+
+	// Check consensus
+	const counts: Record<string, number> = {};
+	for (const r of validResults) {
+		counts[r.result] = (counts[r.result] || 0) + 1;
+		if (counts[r.result] >= 2) return true; // Reached consensus
+	}
+	return false;
 }
 
 const onCronTrigger = (runtime: Runtime<Config>, payload: CronPayload): string => {
@@ -168,6 +231,19 @@ const onCronTrigger = (runtime: Runtime<Config>, payload: CronPayload): string =
 	} else {
 		runtime.log(`[LinkGate] Task ${config.taskId} FAILED verification. Triggering Refund.`)
 		settleEscrow(runtime, config.taskId, 'refund')
+	}
+
+	// NEW: Notify AgentRegistry of performance for each agent
+	for (const res of results) {
+		if (res.agentAddress && res.result !== '__FAILED__') {
+			try {
+				// In this MVP, we treat it as successful if it matches our consensus/passed status
+				const wasSuccessful = passed && res.result !== '__FAILED__';
+				updateReputation(runtime, res.agentAddress, wasSuccessful);
+			} catch (err) {
+				runtime.log(`[LinkGate] Failed to update reputation for ${res.agentAddress}: ${err}`)
+			}
+		}
 	}
 
 	return `Task ${config.taskId} processed. Result: ${passed ? 'Success' : 'Failed'}`

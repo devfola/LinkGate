@@ -12,8 +12,8 @@ export const STABLECOIN_ESCROW_ABI = [
     {
         "inputs": [
             { "internalType": "bytes32", "name": "_taskId", "type": "bytes32" },
-            { "internalType": "uint256", "name": "_amount", "type": "uint256" },
-            { "internalType": "address", "name": "_payer", "type": "address" }
+            { "internalType": "address", "name": "_seller", "type": "address" },
+            { "internalType": "uint256", "name": "_amount", "type": "uint256" }
         ],
         "name": "lockPayment",
         "outputs": [],
@@ -75,8 +75,20 @@ export const AGENT_REGISTRY_ABI = [
         ],
         "stateMutability": "view",
         "type": "function"
+    },
+    {
+
+        "inputs": [
+            { "internalType": "address", "name": "_agent", "type": "address" },
+            { "internalType": "string", "name": "_metadataURI", "type": "string" }
+        ],
+        "name": "registerAgent",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
     }
 ] as const;
+
 
 export const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
 

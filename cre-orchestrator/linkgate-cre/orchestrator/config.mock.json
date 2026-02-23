@@ -1,0 +1,13 @@
+{
+    "schedule": "*/10 * * * * *",
+    "agentEndpoints": [
+        "http://localhost:3001/agent1",
+        "http://localhost:3001/agent2",
+        "http://localhost:3001/agent3"
+    ],
+    "escrowAddress": "0x2019923aab87973e855f78c8927bebdf603a16c5",
+    "registryAddress": "0x0000000000000000000000000000000000000000",
+    "taskId": "task-test-123",
+    "chainSelectorName": "ethereum-testnet-sepolia",
+    "gasLimit": "1000000"
+}

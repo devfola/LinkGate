@@ -24,7 +24,7 @@ export default function OrchestratorDashboard() {
                 address: STABLECOIN_ESCROW_ADDRESS,
                 abi: STABLECOIN_ESCROW_ABI,
                 functionName: "lockPayment",
-                args: [paddedTaskId, parseUnits("10", 6), address!],
+                args: [paddedTaskId, address!, parseUnits("10", 6)],
             });
 
             if (publicClient) {

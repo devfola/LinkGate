@@ -15549,6 +15549,7 @@ var configSchema = exports_external.object({
   schedule: exports_external.string(),
   agentEndpoints: exports_external.array(exports_external.string()),
   escrowAddress: exports_external.string(),
+  registryAddress: exports_external.string(),
   taskId: exports_external.string(),
   chainSelectorName: exports_external.string(),
   gasLimit: exports_external.string()
@@ -15566,7 +15567,7 @@ var fetchAgentResult = (runtime2, endpoint, taskId) => {
     const responseText = Buffer.from(response.body).toString("utf-8");
     const agentResp = JSON.parse(responseText);
     return {
-      agentAddress: endpoint,
+      agentAddress: agentResp.agentAddress || endpoint,
       result: agentResp.result || "Outcome: Team A won 2-1",
       timestamp: Date.now(),
       signature: agentResp.signature || "0xmocksig"
@@ -15630,6 +15631,52 @@ var settleEscrow = (runtime2, taskId, action) => {
   runtime2.log(`[LinkGate] Settlement transaction succeeded: ${bytesToHex(txHash)}`);
   return bytesToHex(txHash);
 };
+var updateReputation = (runtime2, agentAddress, wasSuccessful) => {
+  const config = runtime2.config;
+  const network248 = getNetwork({
+    chainFamily: "evm",
+    chainSelectorName: config.chainSelectorName,
+    isTestnet: true
+  });
+  if (!network248) {
+    throw new Error(`Network not found for chain selector name: ${config.chainSelectorName}`);
+  }
+  const evmClient = new ClientCapability(network248.chainSelector.selector);
+  runtime2.log(`[LinkGate] Reporting performance: recordOutcome("${agentAddress}", ${wasSuccessful})`);
+  const recordOutcomeAbi = [{
+    name: "recordOutcome",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { type: "address", name: "_agent" },
+      { type: "bool", name: "_wasSuccessful" },
+      { type: "bool", name: "_slaViolation" }
+    ],
+    outputs: []
+  }];
+  const callData = encodeFunctionData({
+    abi: recordOutcomeAbi,
+    functionName: "recordOutcome",
+    args: [agentAddress, wasSuccessful, false]
+  });
+  const reportResponse = runtime2.report({
+    encodedPayload: hexToBase64(callData),
+    encoderName: "evm",
+    signingAlgo: "ecdsa",
+    hashingAlgo: "keccak256"
+  }).result();
+  const resp = evmClient.writeReport(runtime2, {
+    receiver: config.registryAddress,
+    report: reportResponse,
+    gasConfig: {
+      gasLimit: config.gasLimit
+    }
+  }).result();
+  if (resp.txStatus !== TxStatus.SUCCESS) {
+    throw new Error(`Failed to write reputation report for ${agentAddress}: ${resp.errorMessage || resp.txStatus}`);
+  }
+  return bytesToHex(resp.txHash || new Uint8Array(32));
+};
 var verifyResults = (results) => {
   const validResults = results.filter((r) => r.result !== "__FAILED__");
   if (validResults.length < 2)
@@ -15657,6 +15704,16 @@ var onCronTrigger = (runtime2, payload) => {
   } else {
     runtime2.log(`[LinkGate] Task ${config.taskId} FAILED verification. Triggering Refund.`);
     settleEscrow(runtime2, config.taskId, "refund");
+  }
+  for (const res of results) {
+    if (res.agentAddress && res.result !== "__FAILED__") {
+      try {
+        const wasSuccessful = passed && res.result !== "__FAILED__";
+        updateReputation(runtime2, res.agentAddress, wasSuccessful);
+      } catch (err) {
+        runtime2.log(`[LinkGate] Failed to update reputation for ${res.agentAddress}: ${err}`);
+      }
+    }
   }
   return `Task ${config.taskId} processed. Result: ${passed ? "Success" : "Failed"}`;
 };
