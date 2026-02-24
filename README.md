@@ -1,4 +1,4 @@
-# 🌐 LinkGate: The Decentralized AI Agent Marketplace
+# LinkGate: The Decentralized AI Agent Marketplace
 
 **Orchestrate, verify, and settle AI agent workflows securely via Chainlink Runtime Environment (CRE).**
 
@@ -6,7 +6,7 @@ LinkGate is a decentralized marketplace that orchestrates, verifies, and settles
 
 ---
 
-## 🏗️ The Problem & The LinkGate Solution
+## The Problem & The LinkGate Solution
 
 In the burgeoning AI economy, three critical barriers prevent true autonomy:
 1. **Discovery:** How do you find reliable AI agents without a central authority?
@@ -17,15 +17,15 @@ In the burgeoning AI economy, three critical barriers prevent true autonomy:
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-*   **🛡️ Byzantine Fault Tolerance (BFT) Consensus Verification**: LinkGate doesn't trust a single AI "black box." The Orchestrator pings multiple independent agents and requires matched results (e.g., 2-out-of-3) before releasing funds.
-*   **🔑 Cryptographic Identity (The Signature Rule)**: Every AI response is signed using the agent's unique ECDSA private key. The CRE validates these signatures against an on-chain registry.
-*   **⚡ Performance SLA Monitoring (The Speed Rule)**: Reliability is enforced. Agents that fail to respond within 5s are penalized on-chain. Chronic violators are automatically deactivated.
+*   **Byzantine Fault Tolerance (BFT) Consensus Verification**: LinkGate doesn't trust a single AI "black box." The Orchestrator pings multiple independent agents and requires matched results (e.g., 2-out-of-3) before releasing funds.
+*   **Cryptographic Identity (The Signature Rule)**: Every AI response is signed using the agent's unique ECDSA private key. The CRE validates these signatures against an on-chain registry.
+*   **Performance SLA Monitoring (The Speed Rule)**: Reliability is enforced. Agents that fail to respond within 5s are penalized on-chain. Chronic violators are automatically deactivated.
 
 ---
 
-## 🏗️ The Core Architecture
+## The Core Architecture
 
 LinkGate is divided into three distinct layers:
 
@@ -42,50 +42,42 @@ The decentralized executor deployed to Chainlink's DON. It acts as the trustless
 
 ---
 
-## ⚙️ Technical Workflow (Phase-by-Phase)
+## Technical Workflow (Phase-by-Phase)
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Frontend as Frontend<br/>(Next.js)
-    participant Escrow as StablecoinEscrow<br/>(Base Sepolia)
-    participant CRE as Chainlink CRE<br/>(DON)
-    participant Agents as AI Agents<br/>(HTTP APIs)
-    participant Registry as AgentRegistry<br/>(Base Sepolia)
+    participant Frontend as "Frontend (Next.js)"
+    participant Escrow as "StablecoinEscrow (Base Sepolia)"
+    participant CRE as "Chainlink CRE (DON)"
+    participant Agents as "AI Agents (HTTP APIs)"
+    participant Registry as "AgentRegistry (Base Sepolia)"
 
-    rect rgb(20, 40, 80)
-        Note over User,Escrow: Phase 1 — x402 Initialization
-        User->>Escrow: lockPayment(taskId, seller, amount)
-        Note right of Escrow: USDC is now held in neutral escrow.
-    end
+    Note over User, Escrow: Phase 1 — x402 Initialization
+    User->>Escrow: lockPayment(taskId, seller, amount)
+    Note right of Escrow: USDC is now held in neutral escrow.
 
-    rect rgb(20, 60, 40)
-        Note over CRE,Agents: Phase 2 — Dispatch & Execution
-        CRE->>Agents: par Concurrent HTTP Requests (taskId)
-        Agents-->>CRE: { result, signature }
-    end
+    Note over CRE, Agents: Phase 2 — Dispatch & Execution
+    CRE->>Agents: Concurrent HTTP Requests (taskId)
+    Agents-->>CRE: { result, signature }
 
-    rect rgb(60, 30, 70)
-        Note over CRE: Phase 3 — BFT Consensus
-        CRE->>CRE: Collect results & verify signatures
-        CRE->>CRE: Count matching result strings (Threshold ≥2)
-    end
+    Note over CRE: Phase 3 — BFT Consensus
+    CRE->>CRE: Collect results & verify signatures
+    CRE->>CRE: Count matching results (Threshold >= 2)
 
-    rect rgb(60, 40, 20)
-        Note over CRE,Registry: Phase 4 — Settlement
-        alt Consensus PASSED 🟢
-            CRE->>Escrow: releasePayment(taskId)
-            CRE->>Registry: recordOutcome(success=true)
-        else Consensus FAILED 🔴
-            CRE->>Escrow: refundPayment(taskId)
-            CRE->>Registry: recordOutcome(success=false)
-        end
+    Note over CRE, Registry: Phase 4 — Settlement
+    alt Consensus PASSED
+        CRE->>Escrow: releasePayment(taskId)
+        CRE->>Registry: recordOutcome(success=true)
+    else Consensus FAILED
+        CRE->>Escrow: refundPayment(taskId)
+        CRE->>Registry: recordOutcome(success=false)
     end
 ```
 
 ---
 
-## 🌍 Real-World Use Case: Sports Prediction Markets
+## Real-World Use Case: Sports Prediction Markets
 
 Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, BetChain needs the score to settle millions in user bets.
 
@@ -96,7 +88,7 @@ Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, 
 
 ---
 
-## 📜 Smart Contracts (Base Sepolia)
+## Smart Contracts (Base Sepolia)
 
 | Contract | Address | Explorer |
 | :--- | :--- | :--- |
@@ -106,7 +98,7 @@ Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, 
 
 ---
 
-## 💻 Getting Started
+## Getting Started
 
 ### Option A: Quick Test (Mock Agents)
 *Verify the logic in 30 seconds.*
@@ -125,7 +117,7 @@ Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, 
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Oracle Infrastructure**: Chainlink Runtime Environment (CRE)
 - **Smart Contracts**: Solidity ^0.8.19 (Foundry)
@@ -135,7 +127,7 @@ Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, 
 
 ---
 
-## 🔗 Chainlink Integration Links
+## Chainlink Integration Links
 
 Links to the files using Chainlink infrastructure:
 
@@ -146,7 +138,7 @@ Links to the files using Chainlink infrastructure:
 
 ---
 
-## 🏆 Sponsor Alignment: Chainlink
+## Sponsor Alignment: Chainlink
 
 LinkGate is built from the ground up to showcase the power of the **Chainlink Runtime Environment (CRE)**. It demonstrates:
 1. **Cross-System Connectivity**: Bridging Base Sepolia with multiple independent AI API agents.
