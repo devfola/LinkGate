@@ -137,7 +137,7 @@ Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, 
 
 ## 🔗 Chainlink Integration Links
 
-Per hackathon requirements, here are the direct links to the files using Chainlink infrastructure:
+Links to the files using Chainlink infrastructure:
 
 *   **CRE Workflow (The Brain):** [main.ts](https://github.com/devfola/LinkGate/blob/main/cre-orchestrator/linkgate-cre/orchestrator/main.ts) — Orchestrates AI agents and signs settlement reports.
 *   **CRE Configuration:** [project.yaml](https://github.com/devfola/LinkGate/blob/main/cre-orchestrator/linkgate-cre/project.yaml) — Defines the Chainlink Runtime Environment settings.
@@ -155,4 +155,4 @@ LinkGate is built from the ground up to showcase the power of the **Chainlink Ru
 
 ---
 
-**Built for the Chainlink Hackathon.**
+**Built with ❤️ for the 2026 Chainlink Hackathon.**
