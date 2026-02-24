@@ -77,14 +77,58 @@ sequenceDiagram
 
 ---
 
-## Real-World Use Case: Sports Prediction Markets
+## Real-World Scenario: A Decentralized Sports Prediction Market
 
-Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, BetChain needs the score to settle millions in user bets.
+### The Context
+Imagine you are the founder of **BetChain** — a blockchain-based sports betting platform. Users bet USDC on football match results. The critical challenge: after the game ends, *who do you trust to submit the correct result?*
 
-1.  **Redundancy**: BetChain locks 10 USDC into LinkGate for the task.
-2.  **Discovery**: LinkGate pings 3 agents: "Ronaldo" (GPT-4), "Messi" (Custom ML), and "Mbappe" (BBC Scraper).
-3.  **Security**: If one agent is hacked and reports a fake score, the BFT logic (2/3) ignores the lie.
-4.  **Payout**: Only truthful agents are paid; the hacked agent has its reputation slashed on-chain.
+Using a single sports API is a single point of failure. It could get hacked, go down, or be bribed to report a fake score — potentially draining millions from your users.
+
+**LinkGate solves this.**
+
+### The Setup (Agent Registration)
+Independent developers each build an AI Agent that queries real sports data: For example
+
+| Agent | Technology | Registered Endpoint |
+|---|---|---|
+| **Agent "Ronaldo"** | GPT-4o + ESPN API | `https://agent-ronaldo.vercel.app/predict` |
+| **Agent "Messi"** | Custom ML model + BBC Sports RSS | `https://agent-messi.fly.dev/predict` |
+| **Agent "Mbappé"** | Twitter bot scraper + NLP | `https://agent-mbappe.railway.app/predict` |
+
+Each developer calls `AgentRegistry.registerAgent(agentWalletAddress, metadataURI)` on-chain (**Base Sepolia**). All three agents now appear in the LinkGate Agent Directory with a starting reputation score of **500**.
+
+### The Task (Phase 1 — Escrow)
+Brazil beats Germany 3-0 in the World Cup Final. BetChain's app locks USD, say **100 USDC**, into the `StablecoinEscrow` contract with the `taskId`:
+
+```
+"Provide the full-time score for Brazil vs Germany, World Cup Final 2026"
+```
+
+The USDC is held in neutral escrow. No agent has been paid yet.
+
+### The Dispatch (Phase 2 — CRE Execution)
+The Chainlink CRE Orchestrator fires and concurrently pings all three registered agents:
+
+- **Agent Ronaldo** → `{ result: "Brazil 3 - 0 Germany", signature: "0xA..." }`
+- **Agent Messi** → `{ result: "Brazil 3 - 0 Germany", signature: "0xB..." }`
+- **Agent Mbappé** → `{ result: "BRAZIL 3 - 0 GERMANY", signature: "0xC..." }`
+
+> **What if one was hacked?** If Agent Ronaldo, for instance, had been compromised and returned `"Germany 1 - 0 Brazil"`, the BFT consensus (requiring ≥2 matching results) would **still produce the correct answer** from Messi and Mbappé. The hacked agent fails consensus and gets slashed.
+
+### BFT Consensus & Settlement (Phases 3 & 4)
+All 3 agents agree → **Consensus PASSED �**
+
+The CRE DON signs and broadcasts the following on-chain:
+
+1. `StablecoinEscrow.releasePayment(taskId)` — **100 USDC** flows to the three agent owners as micropayment for their data service.
+2. `AgentRegistry.recordOutcome(agentAddr, true, false)` — Each agent's reputation increases by **+10** on-chain.
+
+BetChain's contract receives the cryptographically verified result and instantly settles all user bets. No human intervention. No trusted middleman.
+
+### Why This Matters
+- **BetChain** gets guaranteed, tamper-proof data without trusting any single API.
+- **Agent developers** earn USDC micropayments per task, automatically and permissionlessly.
+- **Bad actors** (hacked or offline agents) penalize themselves out of the network through the on-chain reputation system.
 
 ---
 
@@ -120,8 +164,8 @@ Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, 
 ## Tech Stack
 
 - **Oracle Infrastructure**: Chainlink Runtime Environment (CRE)
-- **Smart Contracts**: Solidity ^0.8.19 (Foundry)
-- **Frontend**: Next.js 15, Tailwind CSS, Framer Motion
+- **Smart Contracts**: Solidity
+- **Frontend**: Next.js, Tailwind
 - **Web3 Libraries**: Viem, Wagmi, Privy Auth
 - **Agent Backend**: Node.js, Express, ECDSA Signing
 
