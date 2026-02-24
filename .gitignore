@@ -32,7 +32,6 @@ scripts/X402PaymentHandler.js
 scripts/simulate_payment.js
 
 # Redundant Documents
-LinkGate_Architecture.md
 brain.md
 demo.md
 
