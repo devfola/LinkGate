@@ -11,7 +11,7 @@ import {
 	TxStatus,
 	hexToBase64,
 } from '@chainlink/cre-sdk'
-import { type Address, encodeFunctionData, parseAbiParameters, encodeAbiParameters } from 'viem'
+import { type Address, encodeFunctionData, parseAbiParameters, encodeAbiParameters, verifyMessage, decodeFunctionResult } from 'viem'
 import { z } from 'zod'
 
 const configSchema = z.object({
@@ -26,15 +26,19 @@ const configSchema = z.object({
 
 type Config = z.infer<typeof configSchema>
 
+const SLA_THRESHOLD_MS = 5000;
+
 interface AgentResult {
 	agentAddress: string
 	result: string
 	timestamp: number
 	signature: string
+	responseTime: number
 }
 
-const fetchAgentResult = (runtime: Runtime<Config>, endpoint: string, taskId: string): AgentResult => {
+const fetchAgentResult = async (runtime: Runtime<Config>, endpoint: string, taskId: string): Promise<AgentResult> => {
 	const httpClient = new HTTPClient()
+	const startTime = Date.now()
 
 	try {
 		// In a real scenario, payload would sent via POST.
@@ -50,20 +54,53 @@ const fetchAgentResult = (runtime: Runtime<Config>, endpoint: string, taskId: st
 
 		const responseText = Buffer.from(response.body).toString('utf-8')
 		const agentResp = JSON.parse(responseText)
+		const responseTime = Date.now() - startTime
+
+		const agentAddress = agentResp.agentAddress as Address
+		const message = agentResp.result
+		const signature = agentResp.signature as `0x${string}`
+
+		// Identity Verification (Signature Rule)
+		// We use .result() pattern if the SDK provides a wrapped verifier, 
+		// but viem's verifyMessage is usually async. However, in this environment 
+		// we need to be careful with async. For now, we perform the check.
+		// NOTE: In some CRE versions, you might need a sync wrapper or use recoverAddress.
+
+		let isVerified = false;
+		try {
+			runtime.log(`[LinkGate] Verifying signature for ${agentAddress}...`)
+			isVerified = await verifyMessage({
+				address: agentAddress,
+				message: message,
+				signature: signature,
+			});
+
+			if (isVerified) {
+				runtime.log(`[LinkGate] Identity VERIFIED for ${agentAddress}`)
+			} else {
+				runtime.log(`[LinkGate] Identity FAILED (Bad Signature) for ${agentAddress}`)
+			}
+		} catch (vErr) {
+			runtime.log(`[LinkGate] Identity ERROR for ${agentAddress}: ${vErr}`)
+			isVerified = false;
+		}
 
 		return {
-			agentAddress: agentResp.agentAddress || endpoint,
-			result: agentResp.result || 'Outcome: Team A won 2-1',
+			agentAddress: agentAddress || endpoint,
+			result: isVerified ? (agentResp.result || 'Outcome: Team A won 2-1') : '__FAILED__',
 			timestamp: Date.now(),
-			signature: agentResp.signature || '0xmocksig',
+			signature: signature || '0xmocksig',
+			responseTime
 		}
 	} catch (error) {
 		runtime.log(`[LinkGate] Agent at ${endpoint} failed to respond: ${error}`)
+		const responseTime = Date.now() - startTime
 		return {
 			agentAddress: endpoint,
 			result: '__FAILED__',
 			timestamp: Date.now(),
 			signature: '',
+			responseTime
 		}
 	}
 }
@@ -137,7 +174,7 @@ const settleEscrow = (runtime: Runtime<Config>, taskId: string, action: 'release
 	return bytesToHex(txHash)
 }
 
-const updateReputation = (runtime: Runtime<Config>, agentAddress: string, wasSuccessful: boolean): string => {
+const updateReputation = (runtime: Runtime<Config>, agentAddress: string, wasSuccessful: boolean, slaViolation: boolean): string => {
 	const config = runtime.config
 
 	const network = getNetwork({
@@ -152,7 +189,7 @@ const updateReputation = (runtime: Runtime<Config>, agentAddress: string, wasSuc
 
 	const evmClient = new EVMClient(network.chainSelector.selector)
 
-	runtime.log(`[LinkGate] Reporting performance: recordOutcome("${agentAddress}", ${wasSuccessful})`)
+	runtime.log(`[LinkGate] Reporting performance: recordOutcome("${agentAddress}", success=${wasSuccessful}, slaViolation=${slaViolation})`)
 
 	const recordOutcomeAbi = [{
 		name: 'recordOutcome',
@@ -169,7 +206,7 @@ const updateReputation = (runtime: Runtime<Config>, agentAddress: string, wasSuc
 	const callData = encodeFunctionData({
 		abi: recordOutcomeAbi,
 		functionName: 'recordOutcome',
-		args: [agentAddress as Address, wasSuccessful, false], // slaViolation false for MVP
+		args: [agentAddress as Address, wasSuccessful, slaViolation],
 	})
 
 	const reportResponse = runtime
@@ -198,6 +235,108 @@ const updateReputation = (runtime: Runtime<Config>, agentAddress: string, wasSuc
 	return bytesToHex(resp.txHash || new Uint8Array(32))
 }
 
+const fetchAgentsFromRegistry = async (runtime: Runtime<Config>): Promise<string[]> => {
+	const config = runtime.config
+	const network = getNetwork({
+		chainFamily: 'evm',
+		chainSelectorName: config.chainSelectorName,
+		isTestnet: true,
+	})
+
+	if (!network) throw new Error(`Network not found for discovery`)
+	const evmClient = new EVMClient(network.chainSelector.selector)
+	const endpoints: string[] = []
+
+	try {
+		const registryAbi = [
+			{ name: 'getAgentCount', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+			{ name: 'agentList', type: 'function', stateMutability: 'view', inputs: [{ type: 'uint256' }], outputs: [{ type: 'address' }] },
+			{
+				name: 'getAgent', type: 'function', stateMutability: 'view', inputs: [{ type: 'address' }], outputs: [{
+					type: 'tuple', components: [
+						{ name: 'agentOwner', type: 'address' },
+						{ name: 'metadataURI', type: 'string' },
+						{ name: 'metadataVersion', type: 'uint16' },
+						{ name: 'isActive', type: 'bool' },
+						{ name: 'reputationScore', type: 'uint16' },
+						{ name: 'totalTasks', type: 'uint32' },
+						{ name: 'successfulTasks', type: 'uint32' },
+						{ name: 'slaViolations', type: 'uint32' }
+					]
+				}]
+			}
+		]
+
+		runtime.log(`[LinkGate] Fetching active agents from registry: ${config.registryAddress}`)
+
+		// 1. Get Count
+		const countData = encodeFunctionData({
+			abi: registryAbi,
+			functionName: 'getAgentCount',
+		})
+		const countReply = await evmClient.callContract(runtime, {
+			call: {
+				to: config.registryAddress as Address,
+				data: countData
+			}
+		}).result()
+
+		const count = decodeFunctionResult({
+			abi: registryAbi,
+			functionName: 'getAgentCount',
+			data: bytesToHex(countReply.data)
+		}) as bigint
+
+		// 2. Iterate and fetch metadata
+		for (let i = 0n; i < count; i++) {
+			const addrData = encodeFunctionData({
+				abi: registryAbi,
+				functionName: 'agentList',
+				args: [i]
+			})
+			const addrReply = await evmClient.callContract(runtime, {
+				call: {
+					to: config.registryAddress as Address,
+					data: addrData
+				}
+			}).result()
+
+			const addr = decodeFunctionResult({
+				abi: registryAbi,
+				functionName: 'agentList',
+				data: bytesToHex(addrReply.data)
+			}) as Address
+
+			const agentReadData = encodeFunctionData({
+				abi: registryAbi,
+				functionName: 'getAgent',
+				args: [addr]
+			})
+			const agentReply = await evmClient.callContract(runtime, {
+				call: {
+					to: config.registryAddress as Address,
+					data: agentReadData
+				}
+			}).result()
+
+			const agentData = decodeFunctionResult({
+				abi: registryAbi,
+				functionName: 'getAgent',
+				data: bytesToHex(agentReply.data)
+			}) as any
+
+			if (agentData.isActive) {
+				endpoints.push(agentData.metadataURI)
+			}
+		}
+
+	} catch (err) {
+		runtime.log(`[LinkGate] Discovery failed: ${err}`)
+	}
+
+	return endpoints
+}
+
 const verifyResults = (results: AgentResult[]): boolean => {
 	// Simple verification check: Do we have at least 2 identical successful responses out of 3?
 	const validResults = results.filter(r => r.result !== '__FAILED__');
@@ -212,13 +351,23 @@ const verifyResults = (results: AgentResult[]): boolean => {
 	return false;
 }
 
-const onCronTrigger = (runtime: Runtime<Config>, payload: CronPayload): string => {
+const onCronTrigger = async (runtime: Runtime<Config>, payload: CronPayload): Promise<string> => {
 	const config = runtime.config
 	runtime.log(`[LinkGate] Starting orchestration for task ${config.taskId}`)
 
+	let endpoints = config.agentEndpoints
+	if (endpoints.length === 0) {
+		runtime.log(`[LinkGate] Configuration endpoints empty. Initializing On-Chain Discovery...`)
+		endpoints = await fetchAgentsFromRegistry(runtime)
+	}
+
+	if (endpoints.length === 0) {
+		return `[LinkGate] Aborting: No active agents found in config or registry.`
+	}
+
 	const results: AgentResult[] = []
-	for (const endpoint of config.agentEndpoints) {
-		results.push(fetchAgentResult(runtime, endpoint, config.taskId))
+	for (const endpoint of endpoints) {
+		results.push(await fetchAgentResult(runtime, endpoint, config.taskId))
 	}
 
 	runtime.log(`[LinkGate] Collected ${results.length} results. Proceeding to verification.`)
@@ -239,7 +388,14 @@ const onCronTrigger = (runtime: Runtime<Config>, payload: CronPayload): string =
 			try {
 				// In this MVP, we treat it as successful if it matches our consensus/passed status
 				const wasSuccessful = passed && res.result !== '__FAILED__';
-				updateReputation(runtime, res.agentAddress, wasSuccessful);
+
+				// SLA calculation
+				const slaViolation = res.responseTime > SLA_THRESHOLD_MS;
+				if (slaViolation) {
+					runtime.log(`[LinkGate] SLA Violation detected for ${res.agentAddress}: ${res.responseTime}ms > ${SLA_THRESHOLD_MS}ms`)
+				}
+
+				updateReputation(runtime, res.agentAddress, wasSuccessful, slaViolation);
 			} catch (err) {
 				runtime.log(`[LinkGate] Failed to update reputation for ${res.agentAddress}: ${err}`)
 			}

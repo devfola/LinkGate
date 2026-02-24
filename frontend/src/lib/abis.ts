@@ -1,4 +1,4 @@
-export const STABLECOIN_ESCROW_ADDRESS = "0x2019923aab87973e855f78c8927bebdf603a16c5" as const;
+export const STABLECOIN_ESCROW_ADDRESS = "0xD9Bc6a1a7Ed36FdbF87e27b66C7B5bB9b622574C" as const;
 
 export const STABLECOIN_ESCROW_ABI = [
     {
@@ -36,7 +36,7 @@ export const STABLECOIN_ESCROW_ABI = [
     }
 ] as const;
 
-export const AGENT_REGISTRY_ADDRESS = "0x5096b91558B57B37B4dfeE3663dB3E3FB0b3e4F5" as const;
+export const AGENT_REGISTRY_ADDRESS = "0x8b4287141596700d68ae60EcB04b4CEFCD0b4795" as const;
 
 export const AGENT_REGISTRY_ABI = [
     {

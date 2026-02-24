@@ -5,8 +5,8 @@
     "http://localhost:4001/predict",
     "http://localhost:4002/predict"
   ],
-  "escrowAddress": "0x2019923aab87973e855f78c8927bebdf603a16c5",
-  "registryAddress": "0x0000000000000000000000000000000000000000",
+  "escrowAddress": "0xD9Bc6a1a7Ed36FdbF87e27b66C7B5bB9b622574C",
+  "registryAddress": "0x8b4287141596700d68ae60EcB04b4CEFCD0b4795",
   "taskId": "task-test-123",
   "chainSelectorName": "ethereum-testnet-sepolia",
   "gasLimit": "1000000"

@@ -38,8 +38,11 @@ contract AgentRegistryTest is Test {
     }
 
     function test_RevertWhen_RegisterSameAgentTwice() public {
+        vm.prank(address(this));
         registry.registerAgent(agent1, METADATA_URI);
-        vm.expectRevert("Already registered");
+
+        vm.prank(address(this));
+        vm.expectRevert(AgentRegistry.AgentAlreadyRegistered.selector);
         registry.registerAgent(agent1, METADATA_URI);
     }
 
@@ -69,9 +72,11 @@ contract AgentRegistryTest is Test {
     }
 
     function test_RevertWhen_NonOwnerUpdatesMetadata() public {
+        vm.prank(address(this));
         registry.registerAgent(agent1, METADATA_URI);
+
         vm.prank(outsider);
-        vm.expectRevert("Not agent owner");
+        vm.expectRevert(AgentRegistry.NotAgentOwner.selector);
         registry.updateMetadata(agent1, METADATA_URI_V2, true);
     }
 
@@ -85,14 +90,16 @@ contract AgentRegistryTest is Test {
 
     function test_RevertWhen_NonOwnerSetsOrchestrator() public {
         vm.prank(outsider);
-        vm.expectRevert("Not owner");
-        registry.setOrchestrator(outsider, true);
+        vm.expectRevert(AgentRegistry.NotOwner.selector);
+        registry.setOrchestrator(orch, true);
     }
 
     function test_RevertWhen_NonOrchestratorRecordsOutcome() public {
+        vm.prank(address(this));
         registry.registerAgent(agent1, METADATA_URI);
+
         vm.prank(outsider);
-        vm.expectRevert("Not an orchestrator");
+        vm.expectRevert(AgentRegistry.NotOrchestrator.selector);
         registry.recordOutcome(agent1, true, false);
     }
 

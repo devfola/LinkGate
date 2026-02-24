@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {AgentRegistry} from "../contracts/AgentRegistry.sol";
-import {StablecoinEscrow} from "../contracts/escrow/StablecoinEscrow.sol";
+import {StablecoinEscrow} from "../contracts/StablecoinEscrow.sol";
 
 contract DeployLinkGate is Script {
     function run() public {

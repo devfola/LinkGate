@@ -11,21 +11,26 @@ pragma solidity ^0.8.19;
  *  - Versioned metadata URI for upgradeable manifests.
  */
 contract AgentRegistry {
-    // ── Roles ─────────────────────────────────────────────────────────────
+    error NotOwner();
+    error NotOrchestrator();
+    error AgentNotRegistered();
+    error AgentAlreadyRegistered();
+    error NotAgentOwner();
+
     address public owner;
     mapping(address => bool) public orchestrators;
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
+        if (msg.sender != owner) revert NotOwner();
         _;
     }
 
     modifier onlyOrchestrator() {
-        require(orchestrators[msg.sender], "Not an orchestrator");
+        if (!orchestrators[msg.sender]) revert NotOrchestrator();
         _;
     }
 
-    // ── Data Structures ───────────────────────────────────────────────────
+
     struct Agent {
         address agentOwner;
         string metadataURI; // Points to JSON-LD manifest (IPFS / HTTPS)
@@ -40,7 +45,6 @@ contract AgentRegistry {
     mapping(address => Agent) public agents;
     address[] public agentList;
 
-    // ── Events ────────────────────────────────────────────────────────────
     event AgentRegistered(
         address indexed agentAddress,
         address indexed agentOwner,
@@ -60,12 +64,10 @@ contract AgentRegistry {
     );
     event OrchestratorSet(address indexed orchestrator, bool granted);
 
-    // ── Constructor ───────────────────────────────────────────────────────
     constructor() {
         owner = msg.sender;
     }
 
-    // ── Owner Functions ───────────────────────────────────────────────────
     function setOrchestrator(
         address _orchestrator,
         bool _granted
@@ -74,7 +76,6 @@ contract AgentRegistry {
         emit OrchestratorSet(_orchestrator, _granted);
     }
 
-    // ── Public Functions ──────────────────────────────────────────────────
     /**
      * @notice Register a new AI agent.
      * @param _agent      Address representing the agent (EOA or contract).
@@ -84,7 +85,8 @@ contract AgentRegistry {
         address _agent,
         string calldata _metadataURI
     ) external {
-        require(agents[_agent].agentOwner == address(0), "Already registered");
+        if (agents[_agent].agentOwner != address(0))
+            revert AgentAlreadyRegistered();
 
         agents[_agent] = Agent({
             agentOwner: msg.sender,
@@ -110,7 +112,7 @@ contract AgentRegistry {
         bool _isActive
     ) external {
         Agent storage a = agents[_agent];
-        require(a.agentOwner == msg.sender, "Not agent owner");
+        if (a.agentOwner != msg.sender) revert NotAgentOwner();
 
         a.metadataURI = _metadataURI;
         a.metadataVersion += 1;
@@ -119,7 +121,6 @@ contract AgentRegistry {
         emit AgentUpdated(_agent, _metadataURI, a.metadataVersion, _isActive);
     }
 
-    // ── Orchestrator Functions ─────────────────────────────────────────────
     /**
      * @notice Called by the CRE Orchestrator after every task settlement.
      * @param _agent         The agent that worked the task.
@@ -132,27 +133,27 @@ contract AgentRegistry {
         bool _slaViolation
     ) external onlyOrchestrator {
         Agent storage a = agents[_agent];
-        require(a.agentOwner != address(0), "Agent not registered");
+        if (a.agentOwner == address(0)) revert AgentNotRegistered();
 
         a.totalTasks += 1;
 
         if (_wasSuccessful) {
             a.successfulTasks += 1;
-            // Slowly increase reputation on success (cap at 1000)
+            // this is to slowly increase reputation on success (cap at 1000)
             if (a.reputationScore < 990) a.reputationScore += 10;
         } else {
-            // Penalise on failure; minimum score 0
+            // this is to penalise on failure; minimum score 0
             if (a.reputationScore > 50) a.reputationScore -= 50;
             else a.reputationScore = 0;
         }
 
         if (_slaViolation) {
             a.slaViolations += 1;
-            // Extra penalty for SLA breach
+            // this is to penalise for SLA breach
             if (a.reputationScore > 20) a.reputationScore -= 20;
             else a.reputationScore = 0;
 
-            // Auto-deactivate after 5 SLA violations
+            // this is to auto-deactivate after 5 SLA violations
             if (a.slaViolations >= 5) {
                 a.isActive = false;
             }
@@ -166,7 +167,6 @@ contract AgentRegistry {
         );
     }
 
-    // ── View Functions ────────────────────────────────────────────────────
     function getAgentCount() external view returns (uint256) {
         return agentList.length;
     }

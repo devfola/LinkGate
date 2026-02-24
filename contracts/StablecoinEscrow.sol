@@ -11,6 +11,11 @@ interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
 }
 
+error NotOrchestrator();
+error TaskAlreadyExists();
+error PaymentAlreadySettled();
+error TransferFailed();
+
 /**
  * @title StablecoinEscrow
  * @dev Escrow contract for LinkGate marketplace.
@@ -49,7 +54,7 @@ contract StablecoinEscrow {
     );
 
     modifier onlyOrchestrator() {
-        require(msg.sender == orchestrator, "Only Orchestrator can trigger");
+        if (msg.sender != orchestrator) revert NotOrchestrator();
         _;
     }
 
@@ -69,12 +74,13 @@ contract StablecoinEscrow {
         address _seller,
         uint256 _amount
     ) external {
-        require(payments[_taskId].amount == 0, "Task already exists");
+        if (payments[_taskId].amount != 0) revert TaskAlreadyExists();
 
-        require(
-            IERC20(usdcToken).transferFrom(msg.sender, address(this), _amount),
-            "USDC: transferFrom failed"
-        );
+        if (
+            !IERC20(usdcToken).transferFrom(msg.sender, address(this), _amount)
+        ) {
+            revert TransferFailed();
+        }
 
         payments[_taskId] = Payment({
             buyer: msg.sender,
@@ -92,13 +98,12 @@ contract StablecoinEscrow {
      */
     function releasePayment(bytes32 _taskId) external onlyOrchestrator {
         Payment storage p = payments[_taskId];
-        require(!p.isReleased && !p.isRefunded, "Payment already settled");
+        if (p.isReleased || p.isRefunded) revert PaymentAlreadySettled();
 
         p.isReleased = true;
-        require(
-            IERC20(usdcToken).transfer(p.seller, p.amount),
-            "USDC: transfer to seller failed"
-        );
+        if (!IERC20(usdcToken).transfer(p.seller, p.amount)) {
+            revert TransferFailed();
+        }
 
         emit PaymentReleased(_taskId, p.seller, p.amount);
     }
@@ -108,13 +113,12 @@ contract StablecoinEscrow {
      */
     function refundPayment(bytes32 _taskId) external onlyOrchestrator {
         Payment storage p = payments[_taskId];
-        require(!p.isReleased && !p.isRefunded, "Payment already settled");
+        if (p.isReleased || p.isRefunded) revert PaymentAlreadySettled();
 
         p.isRefunded = true;
-        require(
-            IERC20(usdcToken).transfer(p.buyer, p.amount),
-            "USDC: transfer to buyer failed"
-        );
+        if (!IERC20(usdcToken).transfer(p.buyer, p.amount)) {
+            revert TransferFailed();
+        }
 
         emit PaymentRefunded(_taskId, p.buyer, p.amount);
     }

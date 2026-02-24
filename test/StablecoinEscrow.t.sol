@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import "../contracts/escrow/StablecoinEscrow.sol";
+import "../contracts/StablecoinEscrow.sol";
 
 /// @dev Minimal ERC-20 mock for testing — no approvals needed for `deal`.
 contract MockUSDC {
@@ -100,7 +100,7 @@ contract StablecoinEscrowTest is Test {
         escrow.lockPayment(TASK_A, seller, AMOUNT);
 
         vm.prank(buyer);
-        vm.expectRevert("Task already exists");
+        vm.expectRevert(TaskAlreadyExists.selector);
         escrow.lockPayment(TASK_A, seller, AMOUNT);
     }
 
@@ -126,7 +126,7 @@ contract StablecoinEscrowTest is Test {
         escrow.lockPayment(TASK_A, seller, AMOUNT);
 
         vm.prank(outsider);
-        vm.expectRevert("Only Orchestrator can trigger");
+        vm.expectRevert(NotOrchestrator.selector);
         escrow.releasePayment(TASK_A);
     }
 
@@ -138,7 +138,7 @@ contract StablecoinEscrowTest is Test {
         escrow.releasePayment(TASK_A);
 
         vm.prank(orch);
-        vm.expectRevert("Payment already settled");
+        vm.expectRevert(PaymentAlreadySettled.selector);
         escrow.releasePayment(TASK_A);
     }
 
@@ -166,7 +166,7 @@ contract StablecoinEscrowTest is Test {
         escrow.lockPayment(TASK_A, seller, AMOUNT);
 
         vm.prank(outsider);
-        vm.expectRevert("Only Orchestrator can trigger");
+        vm.expectRevert(NotOrchestrator.selector);
         escrow.refundPayment(TASK_A);
     }
 
@@ -178,7 +178,7 @@ contract StablecoinEscrowTest is Test {
         escrow.refundPayment(TASK_A);
 
         vm.prank(orch);
-        vm.expectRevert("Payment already settled");
+        vm.expectRevert(PaymentAlreadySettled.selector);
         escrow.refundPayment(TASK_A);
     }
 
@@ -190,7 +190,7 @@ contract StablecoinEscrowTest is Test {
         escrow.refundPayment(TASK_A);
 
         vm.prank(orch);
-        vm.expectRevert("Payment already settled");
+        vm.expectRevert(PaymentAlreadySettled.selector);
         escrow.releasePayment(TASK_A);
     }
 
