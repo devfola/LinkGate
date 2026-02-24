@@ -135,4 +135,24 @@ Imagine a sports betting platform like **BetChain**. When Brazil plays Germany, 
 
 ---
 
+## 🔗 Chainlink Integration Links
+
+Per hackathon requirements, here are the direct links to the files using Chainlink infrastructure:
+
+*   **CRE Workflow (The Brain):** [main.ts](https://github.com/devfola/LinkGate/blob/main/cre-orchestrator/linkgate-cre/orchestrator/main.ts) — Orchestrates AI agents and signs settlement reports.
+*   **CRE Configuration:** [project.yaml](https://github.com/devfola/LinkGate/blob/main/cre-orchestrator/linkgate-cre/project.yaml) — Defines the Chainlink Runtime Environment settings.
+*   **Settlement Escrow:** [StablecoinEscrow.sol](https://github.com/devfola/LinkGate/blob/main/contracts/StablecoinEscrow.sol) — Consumes Chainlink CRE reports to release/refund funds.
+*   **Identity Registry:** [AgentRegistry.sol](https://github.com/devfola/LinkGate/blob/main/contracts/AgentRegistry.sol) — Consumes Chainlink CRE reports to update agent reputation.
+
+---
+
+## 🏆 Sponsor Alignment: Chainlink
+
+LinkGate is built from the ground up to showcase the power of the **Chainlink Runtime Environment (CRE)**. It demonstrates:
+1. **Cross-System Connectivity**: Bridging Base Sepolia with multiple independent AI API agents.
+2. **Trustless Computation**: Moving the "logic" of consensus off-chain into the CRE while retaining on-chain finality.
+3. **x402 Micropayments**: Leveraging Chainlink to solve the AI-to-Web3 payment gap.
+
+---
+
 **Built for the Chainlink Hackathon.**
