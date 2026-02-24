@@ -47,31 +47,31 @@ The decentralized executor deployed to Chainlink's DON. It acts as the trustless
 ```mermaid
 sequenceDiagram
     actor User
-    participant Frontend as "Frontend (Next.js)"
-    participant Escrow as "StablecoinEscrow (Base Sepolia)"
-    participant CRE as "Chainlink CRE (DON)"
-    participant Agents as "AI Agents (HTTP APIs)"
-    participant Registry as "AgentRegistry (Base Sepolia)"
+    participant Frontend
+    participant Escrow
+    participant CRE
+    participant Agents
+    participant Registry
 
-    Note over User, Escrow: Phase 1 — x402 Initialization
-    User->>Escrow: lockPayment(taskId, seller, amount)
-    Note right of Escrow: USDC is now held in neutral escrow.
+    Note over User, Escrow: Phase 1 - Initialization
+    User->>Escrow: lockPayment
+    Note right of Escrow: USDC held in neutral escrow
 
-    Note over CRE, Agents: Phase 2 — Dispatch & Execution
-    CRE->>Agents: Concurrent HTTP Requests (taskId)
-    Agents-->>CRE: { result, signature }
+    Note over CRE, Agents: Phase 2 - Dispatch
+    CRE->>Agents: HTTP Requests
+    Agents-->>CRE: Result and Signature
 
-    Note over CRE: Phase 3 — BFT Consensus
-    CRE->>CRE: Collect results & verify signatures
-    CRE->>CRE: Count matching results (Threshold >= 2)
+    Note over CRE: Phase 3 - Consensus
+    CRE->>CRE: Collect results and verify
+    Note right of CRE: Consensus threshold reached
 
-    Note over CRE, Registry: Phase 4 — Settlement
-    alt Consensus PASSED
-        CRE->>Escrow: releasePayment(taskId)
-        CRE->>Registry: recordOutcome(success=true)
-    else Consensus FAILED
-        CRE->>Escrow: refundPayment(taskId)
-        CRE->>Registry: recordOutcome(success=false)
+    Note over CRE, Registry: Phase 4 - Settlement
+    alt Consensus Passed
+        CRE->>Escrow: releasePayment
+        CRE->>Registry: recordOutcome success
+    else Consensus Failed
+        CRE->>Escrow: refundPayment
+        CRE->>Registry: recordOutcome failure
     end
 ```
 

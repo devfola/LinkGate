@@ -42,58 +42,48 @@ Here is exactly what happens when a User interacts with LinkGate:
 ```mermaid
 sequenceDiagram
     actor User
-    participant Frontend as "Frontend (Next.js + Privy)"
-    participant USDC as "USDC Contract (ERC-20)"
-    participant Escrow as "StablecoinEscrow (Base Sepolia)"
-    participant CRE as "Chainlink CRE (DON Orchestrator)"
-    participant AgentA as "AI Agent A (HTTP API)"
-    participant AgentB as "AI Agent B (HTTP API)"
-    participant AgentC as "AI Agent C (HTTP API)"
-    participant Registry as "AgentRegistry (Base Sepolia)"
+    participant Frontend
+    participant USDC
+    participant Escrow
+    participant CRE
+    participant AgentA
+    participant AgentB
+    participant AgentC
+    participant Registry
 
-    Note over User, Escrow: Phase 1 — x402 Initialization (Frontend)
-    User->>Frontend: Visit /orchestrator & select task
-    Frontend->>User: Prompt wallet connection (Privy)
-    User->>USDC: approve(escrowAddress, amount)
-    USDC-->>User: Approval confirmed
-    User->>Escrow: lockPayment(taskId, sellerAddr, amount)
-    Escrow-->>User: PaymentLocked event emitted
-    Note right of Escrow: USDC is now held in neutral escrow.
+    Note over User, Escrow: Phase 1 - Initialization
+    User->>Frontend: Select task
+    User->>USDC: Approve
+    User->>Escrow: Lock payment
+    Note right of Escrow: USDC held in neutral escrow
 
-    Note over CRE, AgentC: Phase 2 — Dispatch & Execution (Chainlink CRE)
-    CRE->>CRE: Cron trigger fires
-    CRE->>CRE: Reads taskId & agentEndpoints from config
-    CRE->>AgentA: GET /agent1?taskId=...
-    CRE->>AgentB: GET /agent2?taskId=...
-    CRE->>AgentC: GET /agent3?taskId=...
-    AgentA-->>CRE: { result: "...", signature: "..." }
-    AgentB-->>CRE: { result: "...", signature: "..." }
-    AgentC-->>CRE: { result: "...", signature: "..." }
+    Note over CRE, AgentC: Phase 2 - Dispatch and Execution
+    CRE->>AgentA: Request
+    CRE->>AgentB: Request
+    CRE->>AgentC: Request
+    AgentA-->>CRE: Result
+    AgentB-->>CRE: Result
+    AgentC-->>CRE: Result
 
-    Note over CRE: Phase 3 — BFT Consensus (Verification)
-    CRE->>CRE: Collect all 3 results
-    CRE->>CRE: Count matching result strings
-    Note right of CRE: Consensus threshold (>= 2) PASSED
+    Note over CRE: Phase 3 - BFT Consensus
+    CRE->>CRE: Verify and Count
+    Note right of CRE: Consensus threshold reached
 
-    alt All agents agree (Consensus PASSED)
-        Note over CRE: Consensus reached → Release funds
-    else Agents disagree or timeout (Consensus FAILED)
-        Note over CRE: No consensus reached → Refund user
+    alt Consensus Passed
+        Note over CRE: Release funds
+    else Consensus Failed
+        Note over CRE: Refund user
     end
 
-    Note over CRE, Registry: Phase 4 — Cryptographically Secure Settlement
-    alt Scenario A — Consensus PASSED
-        CRE->>CRE: Sign EVM report
-        CRE->>Escrow: releasePayment(taskId)
-        Escrow->>AgentA: transfer USDC
-        Escrow-->>CRE: PaymentReleased event emitted
-        CRE->>Registry: recordOutcome(agent, success=true)
-    else Scenario B — Consensus FAILED
-        CRE->>CRE: Sign EVM failure report
-        CRE->>Escrow: refundPayment(taskId)
-        Escrow->>User: transfer USDC
-        Escrow-->>CRE: PaymentRefunded event emitted
-        CRE->>Registry: recordOutcome(agent, success=false)
+    Note over CRE, Registry: Phase 4 - Settlement
+    alt Scenario A - Consensus Passed
+        CRE->>Escrow: releasePayment
+        Escrow->>AgentA: Deposit
+        CRE->>Registry: recordOutcome success
+    else Scenario B - Consensus Failed
+        CRE->>Escrow: refundPayment
+        Escrow->>User: Refund
+        CRE->>Registry: recordOutcome failure
     end
 ```
 
