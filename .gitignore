@@ -1,36 +1,44 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Solidity / Foundry artifacts
+out/
+cache/
+broadcast/
+artifacts/
+typechain/
+typechain-types/
+
+# Next.js artifacts
+.next/
+
 # Dependencies
 node_modules/
 .pnp
 .pnp.js
 
-# Build output
+# TypeScript & Build
+*.tsbuildinfo
 dist/
 build/
-out/
 
-# Environment & secrets
-.env
-.env.local
-.env.*.local
+# Temporary & Simulation Files
+cre-orchestrator/linkgate-cre/orchestrator/tmp.*
+cre-orchestrator/linkgate-cre/mock-agents.js
+scripts/X402PaymentHandler.js
+scripts/simulate_payment.js
 
-# TypeScript cache
-*.tsbuildinfo
+# Redundant Documents
+LinkGate_Architecture.md
+brain.md
+demo.md
 
-# Solidity / Hardhat / Foundry artifacts
-artifacts/
-cache/
-typechain/
-typechain-types/
-
-# Cargo / Rust
-target/
-Cargo.lock
-
-# OS files
+# OS & Editors
 .DS_Store
 Thumbs.db
-
-# Editors
 .idea/
 .vscode/
 *.swp
@@ -45,8 +53,3 @@ yarn-error.log*
 # Coverage
 coverage/
 lcov.info
-
-
-LinkGate_Architecture.md
-brain.md
-demo.md
